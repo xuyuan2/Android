@@ -35,16 +35,21 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView = (TextView)findViewById(R.id.activity_main_text_view);
-        textView.setText("111 mm");
+        textView.setText("666 mm");
+
+        ImageView imageView_logo = (ImageView)findViewById(R.id.logo);
+        imageView_logo.setImageResource(R.drawable.hptg);
 
         imageView = (ImageView)findViewById(R.id.image);
         imageView.setImageResource(R.drawable.hptg);
         //hptgInstantiate();
         //startTimerThread();
+
         SurfaceView videoPrev = (SurfaceView) findViewById(R.id.camera_preview);
         mHolder = videoPrev.getHolder();
         mHolder.addCallback(this);
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
     }
 
     /*
@@ -147,8 +152,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
 
             mCamera.setPreviewCallback(this);
             mCamera.setPreviewDisplay(mHolder);
-            int rotation = instance.getWindowManager().getDefaultDisplay().getRotation();
 
+            int rotation = instance.getWindowManager().getDefaultDisplay().getRotation();
             int degrees = 0;
             switch (rotation) {
                 case 0:
@@ -161,15 +166,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
                     degrees = 180;
                     break;
                 case 3:
-                    degrees = 0 ;
+                    degrees = 270 ;
             }
+
             mCamera.setDisplayOrientation(degrees);
             mCamera.startPreview();
         } catch (Exception e){
             //Log.d(TAG, "Error starting camera preview: " + e.getMessage());
         }
     }
-
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder)
@@ -184,6 +189,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
     {
         if (camera != null) {
             Camera.Parameters parameters = camera.getParameters();
+            int width = parameters.getPreviewSize().width;
+            int height = parameters.getPreviewSize().height;
+            parameters.setPreviewSize(640, 480);
             camera.setParameters(parameters);
         }
     }
@@ -191,8 +199,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
 
     private void drawSquare(byte[] data, int x, int y, int width, int height,int circle, int thickness)
     {
-
-
         int x1 = x -  circle;
         int y1 = y -  circle;
         int x2 = x -  circle;
@@ -244,14 +250,51 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
 
     }
 
+    private byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight)
+    {
+        byte [] yuv = new byte[imageWidth*imageHeight*3/2];
+        // Rotate the Y luma
+        int i = 0;
+        for(int x = 0;x < imageWidth;x++)
+        {
+            for(int y = imageHeight-1;y >= 0;y--)
+            {
+                yuv[i] = data[y*imageWidth+x];
+                i++;
+            }
+        }
+        // Rotate the U and V color components
+        i = imageWidth*imageHeight*3/2-1;
+        for(int x = imageWidth-1;x > 0;x=x-2)
+        {
+            for(int y = 0;y < imageHeight/2;y++)
+            {
+                yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+x];
+                i--;
+                yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+(x-1)];
+                i--;
+            }
+        }
+        return yuv;
+    }
+
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
-
         Camera.Parameters parameters = camera.getParameters();
         int width = parameters.getPreviewSize().width;
         int height = parameters.getPreviewSize().height;
-        int circle = 110;
-        int thickness = 5;
+        int rotation = instance.getWindowManager().getDefaultDisplay().getRotation();
+
+        if(rotation == 3)
+        {
+            data = rotateYUV420Degree90(data, width, height);
+            int temp = height;
+            height = width;
+            width = temp;
+        }
+
+        int circle = 60;
+        int thickness = 2;
 
         drawSquare(data ,height / 2, width / 2,width, height, circle, thickness);
         drawSquare(data ,height / 2, width / 2 - 2 * circle,width, height, circle, thickness);
