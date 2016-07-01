@@ -12,8 +12,10 @@ import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -35,7 +37,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView = (TextView)findViewById(R.id.activity_main_text_view);
-        textView.setText("666 mm");
 
         ImageView imageView_logo = (ImageView)findViewById(R.id.logo);
         imageView_logo.setImageResource(R.drawable.hptg);
@@ -49,6 +50,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         mHolder = videoPrev.getHolder();
         mHolder.addCallback(this);
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+        final View touchView = findViewById(R.id.image);
+        touchView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                textView.setText("Touch coordinates : " +
+                        String.valueOf(event.getX()) + "x" + String.valueOf(event.getY()));
+                return true;
+            }
+        });
 
     }
 
@@ -318,9 +329,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         drawCircler(data ,height / 2 + 2 * circle, width / 2 + 2 * circle,width, height, circle, thickness);
         */
         YuvImage yuv = new YuvImage(data, parameters.getPreviewFormat(), width, height, null);
-
-
-
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         yuv.compressToJpeg(new Rect(0, 0, width, height), 50, out);
