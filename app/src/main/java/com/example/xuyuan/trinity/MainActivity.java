@@ -2,7 +2,13 @@ package com.example.xuyuan.trinity;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.Camera;
+import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -11,6 +17,8 @@ import android.view.SurfaceView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback, Camera.PreviewCallback {
@@ -19,6 +27,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
     private Context context;
     private SurfaceHolder mHolder;
     private Camera mCamera;
+    private ImageView imageView;
+    public static MainActivity instance = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,7 +37,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         textView = (TextView)findViewById(R.id.activity_main_text_view);
         textView.setText("111 mm");
 
-        final ImageView imageView = (ImageView)findViewById(R.id.image);
+        imageView = (ImageView)findViewById(R.id.image);
         imageView.setImageResource(R.drawable.hptg);
         //hptgInstantiate();
         //startTimerThread();
@@ -88,6 +98,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
     public void onResume() {
         super.onResume();
         oldOpenCamera();
+        instance = this;
+
     }
 
     @Override
@@ -130,14 +142,28 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
             // ignore: tried to stop a non-existent preview
         }
 
-        // set preview size and make any resize, rotate or
-        // reformatting changes here
-
         // start preview with new settings
         try {
+
             mCamera.setPreviewCallback(this);
             mCamera.setPreviewDisplay(mHolder);
-            mCamera.setDisplayOrientation(270);
+            int rotation = instance.getWindowManager().getDefaultDisplay().getRotation();
+
+            int degrees = 0;
+            switch (rotation) {
+                case 0:
+                    degrees = 0;
+                    break;
+                case 1:
+                    degrees = 270;
+                    break;
+                case 2:
+                    degrees = 180;
+                    break;
+                case 3:
+                    degrees = 0 ;
+            }
+            mCamera.setDisplayOrientation(degrees);
             mCamera.startPreview();
         } catch (Exception e){
             //Log.d(TAG, "Error starting camera preview: " + e.getMessage());
@@ -148,7 +174,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
     @Override
     public void surfaceDestroyed(SurfaceHolder holder)
     {
-
+        mCamera.stopPreview();
+        mCamera.setPreviewCallback(null);
+        mCamera.release();
+        mCamera = null;
     }
 
     public void setCameraParameters(Camera camera)
@@ -159,8 +188,124 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         }
     }
 
+
+    private void drawSquare(byte[] data, int x, int y, int width, int height,int circle, int thickness)
+    {
+
+
+        int x1 = x -  circle;
+        int y1 = y -  circle;
+        int x2 = x -  circle;
+        int y2 = y +  circle;
+
+        int x3 = x +  circle;
+        int y3 = y -  circle;
+        int x4 = x +  circle;
+        int y4 = y +  circle;
+        for(int i = -1 * thickness; i <= thickness; ++i)
+        //int i = 0;
+        {
+            for(int j = y1; j <= y2; ++j)
+            {
+                int tempx = i + x1;
+                int tempy =j;
+                data[tempx * width + tempy] = (byte)128;
+                tempx = i + x3;
+                tempy =j;
+                data[tempx * width + tempy] = (byte)128;
+            }
+
+            for(int j = x1; j <= x3; ++j)
+            {
+                int tempx = j;
+                int tempy = i + y1;;
+                data[tempx * width + tempy] = (byte)128;
+                tempx = j;
+                tempy = i + y2;
+                data[tempx * width + tempy] = (byte)128;
+            }
+        }
+
+    }
+    private void drawCircler(byte[] data, int x, int y, int width, int height,int circle , int thickness)
+    {
+        for(int i = -1 * circle; i <= circle; ++i)
+        {
+            for(int j = -1 * circle; j <= circle; ++j)
+            {
+                if((x + i>=0) && (x + i< height) && (y + j>=0) && (y + j< width) && (Math.abs(i * i + j * j  - circle * circle) < thickness ))
+                {
+                    int temp_x = x + i ;
+                    int temp_y = y + j;
+                    data[temp_x * width + temp_y] = (byte) 128;
+                }
+            }
+        }
+
+    }
+
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
+
+        Camera.Parameters parameters = camera.getParameters();
+        int width = parameters.getPreviewSize().width;
+        int height = parameters.getPreviewSize().height;
+        int circle = 110;
+        int thickness = 5;
+
+        drawSquare(data ,height / 2, width / 2,width, height, circle, thickness);
+        drawSquare(data ,height / 2, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawSquare(data ,height / 2, width / 2 + 2 * circle,width, height, circle, thickness);
+        drawSquare(data ,height / 2 + 2 * circle, width / 2,width, height, circle, thickness);
+        drawSquare(data ,height / 2 - 2 * circle, width / 2,width, height, circle, thickness);
+        drawSquare(data ,height / 2 - 2 * circle, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawSquare(data ,height / 2 + 2 * circle, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawSquare(data ,height / 2 - 2 * circle, width / 2 + 2 * circle,width, height, circle, thickness);
+        drawSquare(data ,height / 2 + 2 * circle, width / 2 + 2 * circle,width, height, circle, thickness);
+
+        /*
+        drawCircler(data ,height / 2, width / 2,width, height, circle, thickness);
+        drawCircler(data ,height / 2, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawCircler(data ,height / 2, width / 2 + 2 * circle,width, height, circle, thickness);
+        drawCircler(data ,height / 2 + 2 * circle, width / 2,width, height, circle, thickness);
+        drawCircler(data ,height / 2 - 2 * circle, width / 2,width, height, circle, thickness);
+        drawCircler(data ,height / 2 - 2 * circle, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawCircler(data ,height / 2 + 2 * circle, width / 2 - 2 * circle,width, height, circle, thickness);
+        drawCircler(data ,height / 2 - 2 * circle, width / 2 + 2 * circle,width, height, circle, thickness);
+        drawCircler(data ,height / 2 + 2 * circle, width / 2 + 2 * circle,width, height, circle, thickness);
+        */
+        YuvImage yuv = new YuvImage(data, parameters.getPreviewFormat(), width, height, null);
+
+
+
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        yuv.compressToJpeg(new Rect(0, 0, width, height), 50, out);
+
+        byte[] bytes = out.toByteArray();
+        final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+
+        imageView.setImageBitmap(bitmap);
+
+
+        /*
+        final Handler handler = new Handler();
+        Runnable runnable = new Runnable() {
+            public void run() {
+                {
+                    handler.post(new Runnable(){
+                        public void run() {
+                            {
+                                imageView.setImageBitmap(bitmap);
+                            }
+                        }
+                    });
+
+                }
+            }
+        };
+        new Thread(runnable).start();
+        */
         return;
     }
 
